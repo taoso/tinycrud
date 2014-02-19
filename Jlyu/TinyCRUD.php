@@ -142,12 +142,4 @@ class TinyCRUD {
 
         return $daos;
     }
-
-    public function __set($name, $value) {
-        $this->changedFields[$name] = $value;
-    }
-
-    public function __get($name) {
-        return $this->changedFields[$name];
-    }
 }
