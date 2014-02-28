@@ -2,16 +2,16 @@
 namespace Jlyu;
 
 class TinyCRUD {
-    public $id = null;
+    public static $pkName = 'id';
     private static $db = null;
     protected $changedFields = array();
+    private $isCreate = false;
 
-    public final function __construct($id = null) {
-        if ($id) {
-            $this->get($id);
+    public function __construct($pk = null) {
+        if ($pk) {
+            return $this->get($pk);
         }
     }
-
 
     public static function setDb(\PDO $db) {
         self::$db = $db;
@@ -22,10 +22,10 @@ class TinyCRUD {
     }
 
     public function save() {
-        if ($this->id) {
-            $this->update();
-        } else {
+        if ($this->isCreate) {
             $this->create();
+        } else {
+            $this->update();
         }
     }
 
@@ -47,13 +47,15 @@ class TinyCRUD {
         }
 
         $sql = sprintf(
-            "update %s set %s where id=%s",
+            "update %s set %s where `%s` = ?",
             static::$table,
             join(',', array_map(function ($field) {
                 return "`$field` = ?";
             }, $fields)),
-            $this->id
+            static::$pkName
         );
+
+        $values[] = $this->{static::$pkName};
 
         $stmt = self::getDb()->prepare($sql);
         return $stmt->execute($values);
@@ -77,15 +79,14 @@ class TinyCRUD {
         );
 
         $stmt = self::getDb()->prepare($sql);
-        if ($stmt->execute($values)) {
-            $this->id  = self::getDb()->lastInsertId('id');
-        }
+        $stmt->execute($values);
     }
 
     protected function get($id) {
         $sql = sprintf(
-            "select * from %s where id = ?",
-            static::$table
+            "select * from `%s` where `%s` = ?",
+            static::$table,
+            static::$pkName
         );
 
         $stmt = self::getDb()->prepare($sql);
@@ -93,7 +94,7 @@ class TinyCRUD {
 
         $dao = $stmt->fetch(\PDO::FETCH_ASSOC);
         if (!$dao) {
-            throw new \RangeException('dao not exists');
+            return null;
         }
 
         foreach ($dao as $field => $value) {
@@ -103,42 +104,48 @@ class TinyCRUD {
 
     public function delete() {
         $sql = sprintf(
-            "delete from %s where id = ?",
-            static::$table
+            "delete from `%s` where `%s` = ?",
+            static::$table,
+            static::$pkName
         );
         $stmt = self::getDb()->prepare($sql);
         return $stmt->execute(array($this->id));
     }
 
     public function getIds($condations) {
-        $sql = "select id from " . static::$table;
+        $sql = "select `" . static::$pkName . "` from " . static::$table;
         $fields = array();
         $values = array();
         foreach ($condations as $field => $value) {
-          if ($value) {
-            $fields[] = $field;
-            $values[] = $value;
-          }
+            if ($value) {
+                $fields[] = $field;
+                $values[] = $value;
+            }
         }
         $condationExpression = join(' and', array_map(function ($field) {
-          return "$field = ?";
+            return "`$field` = ?";
         }, $fields));
 
         if ($condationExpression) {
-          $sql = "$sql where $condationExpression";
+            $sql = "$sql where $condationExpression";
         }
         $stmt = self::getDb()->prepare($sql);
         $stmt->execute($values);
 
         $daos = array();
         while (false !== ($obj = $stmt->fetch(\PDO::FETCH_ASSOC))) {
-          $dao = new static();
-          foreach ($obj as $field => $value) {
-            $dao->$field = $value;
-          }
-          $daos[] = $dao;
+            $dao = new static();
+            foreach ($obj as $field => $value) {
+                $dao->$field = $value;
+            }
+            $daos[] = $dao;
         }
 
         return $daos;
+    }
+
+    public function setPk($pk) {
+        $this->changedFields[static::$pkName] = $pk;
+        $this->isCreate = true;
     }
 }
