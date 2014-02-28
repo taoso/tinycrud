@@ -7,8 +7,7 @@ class TinyCRUD {
     protected $changedFields = array();
 
     public final function __construct($id = null) {
-        $id = (int) $id;
-        if ($id > 0) {
+        if ($id) {
             $this->get($id);
         }
     }
