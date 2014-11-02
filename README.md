@@ -6,15 +6,9 @@ Install
 =======
 Use composer to install TinyCRUD.
 
-Add dependence:
-```json
-{
-    "require": {
-        "jlyu/tinycrud": "0.0.1"
-    }
-}
+```sh
+composer require jlyu/tinycrud
 ```
-and run `composer install`. Enjoy it!
 
 Usage
 =====
